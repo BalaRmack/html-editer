@@ -3,161 +3,201 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CodePad — HTML Редактор</title>
+  <title>CodePad — Редактор с ИИ</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0d1117; --bg-secondary: #161b22; --bg-tertiary: #1c2333;
-      --fg: #c9d1d9; --fg-muted: #8b949e; --accent: #00d4aa; --accent-hover: #00f0c0;
-      --accent-dim: rgba(0,212,170,0.08); --border: #30363d;
-      --tab-active: #0d1117; --tab-inactive: #1c2333;
-      --error: #f85149; --warn: #d29922;
+      --bg:#0d1117;--bg2:#161b22;--bg3:#1c2333;--fg:#c9d1d9;--fgm:#8b949e;
+      --acc:#00d4aa;--acch:#00f0c0;--accd:rgba(0,212,170,0.08);--brd:#30363d;
+      --err:#f85149;--wrn:#d29922;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--fg); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-    .toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); gap: 12px; flex-shrink: 0; z-index: 100; }
-    .toolbar-left, .toolbar-center, .toolbar-right { display: flex; align-items: center; gap: 8px; }
-    .logo { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1.15rem; color: var(--accent); display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px; margin-right: 8px; }
-    .logo i { font-size: 1.2rem; }
-    .mode-switch { display: flex; background: var(--bg); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
-    .mode-btn { padding: 6px 14px; border: none; background: transparent; color: var(--fg-muted); font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; font-weight: 600; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
-    .mode-btn.active { background: var(--accent); color: #0d1117; }
-    .mode-btn:hover:not(.active) { color: var(--fg); }
-    .btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--fg); font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.2s; white-space: nowrap; }
-    .btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-    .btn.primary { background: var(--accent); color: #0d1117; border-color: var(--accent); }
-    .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #0d1117; }
-    .btn.icon-only { padding: 7px 10px; }
-    .auto-run-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--fg-muted); cursor: pointer; user-select: none; }
-    .toggle-switch { width: 32px; height: 18px; background: var(--border); border-radius: 9px; position: relative; transition: background 0.2s; }
-    .toggle-switch.active { background: var(--accent); }
-    .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform 0.2s; }
-    .toggle-switch.active::after { transform: translateX(14px); }
-    .main-container { flex: 1; display: flex; overflow: hidden; position: relative; }
-    .main-container.vertical { flex-direction: column; }
-    .editor-panel { display: flex; flex-direction: column; min-width: 200px; min-height: 150px; overflow: hidden; }
-    .editor-tabs { display: flex; background: var(--bg-tertiary); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-    .editor-tab { padding: 8px 18px; background: var(--tab-inactive); color: var(--fg-muted); border: none; border-right: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; position: relative; display: flex; align-items: center; gap: 6px; }
-    .editor-tab.active { background: var(--tab-active); color: var(--accent); }
-    .editor-tab.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--accent); }
-    .editor-tab:hover:not(.active) { color: var(--fg); background: rgba(0,212,170,0.05); }
-    .editor-tab .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .dot-html { background: #f85149; } .dot-css { background: #58a6ff; } .dot-js { background: #d29922; }
-    .editor-wrapper { flex: 1; overflow: hidden; position: relative; }
-    .editor-wrapper.hidden { display: none; }
-    .editor-wrapper .CodeMirror { height: 100%; font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.6; }
-    .resizer { flex-shrink: 0; background: var(--border); position: relative; z-index: 10; transition: background 0.15s; }
-    .resizer:hover, .resizer.active { background: var(--accent); }
-    .resizer.horizontal { width: 4px; cursor: col-resize; } .resizer.vertical { height: 4px; cursor: row-resize; }
-    .preview-panel { flex: 1; display: flex; flex-direction: column; min-width: 200px; min-height: 150px; overflow: hidden; }
-    .preview-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-    .preview-title { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--fg-muted); display: flex; align-items: center; gap: 6px; }
-    .preview-title i { color: var(--accent); }
-    .preview-url { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--fg-muted); background: var(--bg); padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); flex: 1; margin: 0 12px; }
-    .preview-iframe-wrapper { flex: 1; background: #fff; position: relative; min-height: 80px; }
-    .preview-iframe-wrapper iframe { width: 100%; height: 100%; border: none; }
-    .console-panel { height: 160px; border-top: 1px solid var(--border); display: flex; flex-direction: column; background: var(--bg); flex-shrink: 0; transition: height 0.25s ease; overflow: hidden; }
-    .console-panel.collapsed { height: 0; border-top: none; }
-    .console-header { display: flex; align-items: center; justify-content: space-between; padding: 5px 12px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-    .console-header-left { display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--fg-muted); }
-    .console-badge { background: var(--error); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 8px; display: none; }
-    .console-badge.visible { display: inline-block; }
-    .console-btn { background: none; border: none; color: var(--fg-muted); cursor: pointer; padding: 2px 6px; font-size: 0.75rem; border-radius: 4px; transition: all 0.15s; }
-    .console-btn:hover { color: var(--fg); background: rgba(255,255,255,0.05); }
-    .console-body { flex: 1; overflow-y: auto; padding: 6px 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
-    .console-msg { padding: 3px 0; border-bottom: 1px solid rgba(48,54,61,0.4); display: flex; gap: 8px; align-items: flex-start; word-break: break-word; }
-    .console-msg:last-child { border-bottom: none; }
-    .console-msg.error { color: var(--error); } .console-msg.warn { color: var(--warn); } .console-msg.log { color: var(--fg); }
-    .console-msg .msg-icon { width: 16px; text-align: center; flex-shrink: 0; margin-top: 2px; }
-    .console-msg.error .msg-icon { color: var(--error); } .console-msg.warn .msg-icon { color: var(--warn); } .console-msg.log .msg-icon { color: var(--fg-muted); }
-    .console-msg .msg-text { flex: 1; white-space: pre-wrap; }
-    .console-empty { color: var(--fg-muted); font-style: italic; padding: 8px 0; font-size: 0.75rem; }
-    .status-bar { display: flex; align-items: center; justify-content: space-between; padding: 4px 16px; background: var(--bg-secondary); border-top: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--fg-muted); flex-shrink: 0; }
-    .status-left, .status-right { display: flex; align-items: center; gap: 16px; }
-    .status-item { display: flex; align-items: center; gap: 4px; }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .toast-container { position: fixed; top: 60px; right: 16px; z-index: 10000; display: flex; flex-direction: column; gap: 8px; }
-    .toast { padding: 10px 18px; background: var(--bg-secondary); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; color: var(--fg); font-size: 0.85rem; font-family: 'Space Grotesk', sans-serif; animation: toastIn 0.3s ease; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-    .toast.fade-out { animation: toastOut 0.3s ease forwards; }
-    @keyframes toastIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    @keyframes toastOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100px); opacity: 0; } }
-    .CodeMirror { background: var(--bg) !important; color: var(--fg) !important; }
-    .CodeMirror-gutters { background: var(--bg-secondary) !important; border-right: 1px solid var(--border) !important; }
-    .CodeMirror-linenumber { color: var(--fg-muted) !important; font-size: 0.75rem; }
-    .CodeMirror-cursor { border-left-color: var(--accent) !important; }
-    .CodeMirror-selected { background: rgba(0,212,170,0.15) !important; }
-    .CodeMirror-activeline-background { background: rgba(0,212,170,0.05) !important; }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--fg-muted); }
-    @media (max-width: 768px) { .toolbar { padding: 6px 10px; flex-wrap: wrap; gap: 6px; } .btn span { display: none; } .mode-btn { padding: 5px 10px; font-size: 0.75rem; } .preview-url { display: none; } .logo { font-size: 1rem; } .toolbar-center { display: none; } }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--fg);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+    .toolbar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--brd);gap:10px;flex-shrink:0;z-index:100}
+    .tl,.tc,.tr{display:flex;align-items:center;gap:8px}
+    .logo{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.1rem;color:var(--acc);display:flex;align-items:center;gap:8px;margin-right:6px}
+    .logo i{font-size:1.1rem}
+    .ms{display:flex;background:var(--bg);border-radius:8px;padding:3px;border:1px solid var(--brd)}
+    .mb{padding:6px 14px;border:none;background:0;color:var(--fgm);font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer;border-radius:6px;transition:.2s}
+    .mb.a{background:var(--acc);color:#0d1117}
+    .mb:hover:not(.a){color:var(--fg)}
+    .btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--brd);background:var(--bg3);color:var(--fg);font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer;border-radius:8px;transition:.2s;white-space:nowrap}
+    .btn:hover{border-color:var(--acc);color:var(--acc);background:var(--accd)}
+    .btn.p{background:var(--acc);color:#0d1117;border-color:var(--acc)}
+    .btn.p:hover{background:var(--acch);border-color:var(--acch);color:#0d1117}
+    .btn.io{padding:7px 10px}
+    .art{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--fgm);cursor:pointer;user-select:none}
+    .ts{width:32px;height:18px;background:var(--brd);border-radius:9px;position:relative;transition:.2s}
+    .ts.a{background:var(--acc)}
+    .ts::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:.2s}
+    .ts.a::after{transform:translateX(14px)}
+    .mc{flex:1;display:flex;overflow:hidden;position:relative}
+    .mc.v{flex-direction:column}
+    .ep{display:flex;flex-direction:column;min-width:200px;min-height:150px;overflow:hidden}
+    .et{display:flex;background:var(--bg3);border-bottom:1px solid var(--brd);flex-shrink:0}
+    .etab{padding:8px 18px;background:var(--bg3);color:var(--fgm);border:none;border-right:1px solid var(--brd);font-family:'JetBrains Mono',monospace;font-size:.78rem;cursor:pointer;transition:.2s;position:relative;display:flex;align-items:center;gap:6px}
+    .etab.a{background:var(--bg);color:var(--acc)}
+    .etab.a::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--acc)}
+    .etab:hover:not(.a){color:var(--fg);background:rgba(0,212,170,.05)}
+    .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .dh{background:#f85149}.dc{background:#58a6ff}.dj{background:#d29922}
+    .ew{flex:1;overflow:hidden;position:relative}.ew.h{display:none}
+    .ew .CodeMirror{height:100%;font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.6}
+    .rz{flex-shrink:0;background:var(--brd);position:relative;z-index:10;transition:.15s}
+    .rz:hover,.rz.a{background:var(--acc)}
+    .rz.hz{width:4px;cursor:col-resize}.rz.vt{height:4px;cursor:row-resize}
+    .pp{flex:1;display:flex;flex-direction:column;min-width:200px;min-height:150px;overflow:hidden}
+    .ph{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:var(--bg3);border-bottom:1px solid var(--brd);flex-shrink:0}
+    .pt{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--fgm);display:flex;align-items:center;gap:6px}
+    .pt i{color:var(--acc)}
+    .purl{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--fgm);background:var(--bg);padding:3px 10px;border-radius:4px;border:1px solid var(--brd);flex:1;margin:0 12px}
+    .pfw{flex:1;background:#fff;position:relative;min-height:80px}
+    .pfw iframe{width:100%;height:100%;border:none}
+    .cp{height:160px;border-top:1px solid var(--brd);display:flex;flex-direction:column;background:var(--bg);flex-shrink:0;transition:height .25s;overflow:hidden}
+    .cp.col{height:0;border-top:none}
+    .ch{display:flex;align-items:center;justify-content:space-between;padding:5px 12px;background:var(--bg2);border-bottom:1px solid var(--brd);flex-shrink:0}
+    .chl{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--fgm)}
+    .cb{background:var(--err);color:#fff;font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:8px;display:none}
+    .cb.v{display:inline-block}
+    .cbtn{background:0;border:0;color:var(--fgm);cursor:pointer;padding:2px 6px;font-size:.75rem;border-radius:4px;transition:.15s}
+    .cbtn:hover{color:var(--fg);background:rgba(255,255,255,.05)}
+    .cbd{flex:1;overflow-y:auto;padding:6px 12px;font-family:'JetBrains Mono',monospace;font-size:.78rem}
+    .cm{padding:3px 0;border-bottom:1px solid rgba(48,54,61,.4);display:flex;gap:8px;align-items:flex-start;word-break:break-word}
+    .cm:last-child{border-bottom:none}
+    .cm.er{color:var(--err)}.cm.wr{color:var(--wrn)}.cm.lg{color:var(--fg)}
+    .cm .mi{width:16px;text-align:center;flex-shrink:0;margin-top:2px}
+    .cm.er .mi{color:var(--err)}.cm.wr .mi{color:var(--wrn)}.cm.lg .mi{color:var(--fgm)}
+    .cm .mt{flex:1;white-space:pre-wrap}
+    .ce{color:var(--fgm);font-style:italic;padding:8px 0;font-size:.75rem}
+    .sb{display:flex;align-items:center;justify-content:space-between;padding:4px 16px;background:var(--bg2);border-top:1px solid var(--brd);font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--fgm);flex-shrink:0}
+    .sl,.sr{display:flex;align-items:center;gap:16px}
+    .si{display:flex;align-items:center;gap:4px}
+    .sd{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .tc2{position:fixed;top:60px;right:16px;z-index:10000;display:flex;flex-direction:column;gap:8px}
+    .t2{padding:10px 18px;background:var(--bg2);border:1px solid var(--brd);border-left:3px solid var(--acc);border-radius:8px;color:var(--fg);font-size:.85rem;font-family:inherit;animation:ti .3s;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+    .t2.fo{animation:to .3s forwards}
+    @keyframes ti{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+    @keyframes to{from{transform:translateX(0);opacity:1}to{transform:translateX(100px);opacity:0}}
+    .CodeMirror{background:var(--bg)!important;color:var(--fg)!important}
+    .CodeMirror-gutters{background:var(--bg2)!important;border-right:1px solid var(--brd)!important}
+    .CodeMirror-linenumber{color:var(--fgm)!important;font-size:.75rem}
+    .CodeMirror-cursor{border-left-color:var(--acc)!important}
+    .CodeMirror-selected{background:rgba(0,212,170,.15)!important}
+    .CodeMirror-activeline-background{background:rgba(0,212,170,.05)!important}
+    ::-webkit-scrollbar{width:8px;height:8px}
+    ::-webkit-scrollbar-track{background:var(--bg)}
+    ::-webkit-scrollbar-thumb{background:var(--brd);border-radius:4px}
+    ::-webkit-scrollbar-thumb:hover{background:var(--fgm)}
+
+    /* === ИИ Чат === */
+    #aiFab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#00d4aa,#00b894);color:#0d1117;border:none;font-size:1.4rem;cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(0,212,170,.35);transition:transform .2s,box-shadow .2s;display:flex;align-items:center;justify-content:center}
+    #aiFab:hover{transform:scale(1.1);box-shadow:0 6px 28px rgba(0,212,170,.5)}
+    #aiChat{position:fixed;bottom:90px;right:24px;width:380px;height:520px;background:var(--bg2);border:1px solid var(--brd);border-radius:16px;z-index:200;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5);transition:opacity .25s,transform .25s;transform-origin:bottom right}
+    #aiChat.hidden{opacity:0;transform:scale(.9);pointer-events:none}
+    .aiHead{padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .aiHead h3{font-size:.9rem;display:flex;align-items:center;gap:8px;color:var(--acc);font-family:'JetBrains Mono',monospace}
+    .aiMsgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .aiMsg{max-width:90%;padding:10px 14px;border-radius:12px;font-size:.85rem;line-height:1.5;word-break:break-word;white-space:pre-wrap}
+    .aiMsg.user{background:var(--acc);color:#0d1117;align-self:flex-end;border-bottom-right-radius:4px}
+    .aiMsg.bot{background:var(--bg3);color:var(--fg);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--brd)}
+    .aiMsg.bot code{background:rgba(0,212,170,.1);padding:1px 4px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:.8rem}
+    .aiApply{margin-top:8px;padding:6px 14px;background:var(--acc);color:#0d1117;border:none;border-radius:6px;font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit;transition:.15s}
+    .aiApply:hover{background:var(--acch)}
+    .aiInput{padding:12px;border-top:1px solid var(--brd);display:flex;gap:8px;flex-shrink:0;background:var(--bg3)}
+    .aiInput textarea{flex:1;background:var(--bg);border:1px solid var(--brd);color:var(--fg);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:.85rem;resize:none;outline:none;min-height:40px;max-height:100px;transition:border-color .2s}
+    .aiInput textarea:focus{border-color:var(--acc)}
+    .aiInput button{width:40px;height:40px;border:none;background:var(--acc);color:#0d1117;border-radius:8px;cursor:pointer;font-size:1rem;transition:.15s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .aiInput button:hover{background:var(--acch)}
+    .aiInput button:disabled{opacity:.5;cursor:not-allowed}
+    .aiTyping{display:flex;gap:4px;padding:10px 14px;align-self:flex-start}
+    .aiTyping span{width:8px;height:8px;background:var(--fgm);border-radius:50%;animation:bounce 1.4s infinite}
+    .aiTyping span:nth-child(2){animation-delay:.2s}
+    .aiTyping span:nth-child(3){animation-delay:.4s}
+    @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-8px)}}
+    @media(max-width:768px){.toolbar{padding:6px 10px;flex-wrap:wrap;gap:6px}.btn span{display:none}.mb{padding:5px 10px;font-size:.75rem}.purl{display:none}.logo{font-size:1rem}.tc{display:none}#aiChat{width:calc(100vw - 20px);right:10px;bottom:80px;height:60vh}}
   </style>
 </head>
 <body>
   <div class="toolbar">
-    <div class="toolbar-left">
+    <div class="tl">
       <div class="logo"><i class="fa-solid fa-code"></i> CodePad</div>
-      <div class="mode-switch">
-        <button class="mode-btn active" data-mode="single" onclick="setMode('single')">Один файл</button>
-        <button class="mode-btn" data-mode="multi" onclick="setMode('multi')">Раздельные</button>
+      <div class="ms">
+        <button class="mb a" data-mode="single" onclick="setMode('single')">Один файл</button>
+        <button class="mb" data-mode="multi" onclick="setMode('multi')">Раздельные</button>
       </div>
     </div>
-    <div class="toolbar-center">
-      <label class="auto-run-toggle" onclick="toggleAutoRun()">
-        <div class="toggle-switch active" id="autoRunToggle"></div> Автозапуск
-      </label>
+    <div class="tc">
+      <label class="art" onclick="toggleAutoRun()"><div class="ts a" id="arT"></div> Автозапуск</label>
     </div>
-    <div class="toolbar-right">
-      <button class="btn icon-only" onclick="swapPanels()" title="Поменять панели"><i class="fa-solid fa-right-left"></i></button>
-      <button class="btn icon-only" onclick="toggleLayout()" title="Расположение"><i class="fa-solid fa-up-down-left-right"></i></button>
-      <button class="btn primary" onclick="runCode()" title="Запустить (Ctrl+Enter)"><i class="fa-solid fa-play"></i><span>Запустить</span></button>
-      <button class="btn" onclick="openInNewTab()" title="Открыть в новой вкладке"><i class="fa-solid fa-up-right-from-square"></i><span>Открыть</span></button>
+    <div class="tr">
+      <button class="btn io" onclick="swapPanels()" title="Поменять"><i class="fa-solid fa-right-left"></i></button>
+      <button class="btn io" onclick="toggleLayout()" title="Расположение"><i class="fa-solid fa-up-down-left-right"></i></button>
+      <button class="btn p" onclick="runCode()" title="Запустить (Ctrl+Enter)"><i class="fa-solid fa-play"></i><span>Запустить</span></button>
+      <button class="btn" onclick="openInNewTab()" title="Открыть"><i class="fa-solid fa-up-right-from-square"></i><span>Открыть</span></button>
       <button class="btn" onclick="downloadFile()" title="Скачать (Ctrl+S)"><i class="fa-solid fa-download"></i><span>Скачать</span></button>
     </div>
   </div>
-  <div class="main-container" id="mainContainer">
-    <div class="editor-panel" id="editorPanel" style="width:50%;">
-      <div class="editor-tabs" id="editorTabs" style="display:none;"></div>
-      <div class="editor-wrapper" id="editorWrapperHtml"><textarea id="codeHtml"></textarea></div>
-      <div class="editor-wrapper hidden" id="editorWrapperCss"><textarea id="codeCss"></textarea></div>
-      <div class="editor-wrapper hidden" id="editorWrapperJs"><textarea id="codeJs"></textarea></div>
+
+  <div class="mc" id="mc">
+    <div class="ep" id="ep" style="width:50%;">
+      <div class="et" id="et" style="display:none"></div>
+      <div class="ew" id="ewH"><textarea id="cH"></textarea></div>
+      <div class="ew h" id="ewC"><textarea id="cC"></textarea></div>
+      <div class="ew h" id="ewJ"><textarea id="cJ"></textarea></div>
     </div>
-    <div class="resizer horizontal" id="resizer"></div>
-    <div class="preview-panel" id="previewPanel">
-      <div class="preview-header">
-        <div class="preview-title"><i class="fa-solid fa-eye"></i> Предпросмотр</div>
-        <div class="preview-url">localhost:preview</div>
-        <div style="display:flex;gap:4px;">
-          <button class="console-btn" onclick="toggleConsole()" title="Консоль"><i class="fa-solid fa-terminal"></i></button>
-          <button class="console-btn" onclick="refreshPreview()" title="Обновить"><i class="fa-solid fa-rotate-right"></i></button>
+    <div class="rz hz" id="rz"></div>
+    <div class="pp" id="pp">
+      <div class="ph">
+        <div class="pt"><i class="fa-solid fa-eye"></i> Предпросмотр</div>
+        <div class="purl">localhost:preview</div>
+        <div style="display:flex;gap:4px">
+          <button class="cbtn" onclick="toggleCon()" title="Консоль"><i class="fa-solid fa-terminal"></i></button>
+          <button class="cbtn" onclick="refreshPreview()" title="Обновить"><i class="fa-solid fa-rotate-right"></i></button>
         </div>
       </div>
-      <div class="preview-iframe-wrapper">
-        <!-- ИСПРАВЛЕНО: добавлено allow-pointer-lock -->
-        <iframe id="previewFrame" sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-popups allow-pointer-lock"></iframe>
-      </div>
-      <div class="console-panel" id="consolePanel">
-        <div class="console-header">
-          <div class="console-header-left"><i class="fa-solid fa-terminal"></i> Консоль <span class="console-badge" id="consoleBadge">0</span></div>
-          <div style="display:flex;gap:4px;">
-            <button class="console-btn" onclick="clearConsole()" title="Очистить"><i class="fa-solid fa-ban"></i></button>
-            <button class="console-btn" onclick="toggleConsole()" title="Свернуть"><i class="fa-solid fa-chevron-down" id="consoleToggleIcon"></i></button>
+      <div class="pfw"><iframe id="pf" sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-popups allow-pointer-lock"></iframe></div>
+      <div class="cp" id="conP">
+        <div class="ch">
+          <div class="chl"><i class="fa-solid fa-terminal"></i> Консоль <span class="cb" id="cBg">0</span></div>
+          <div style="display:flex;gap:4px">
+            <button class="cbtn" onclick="clearCon()" title="Очистить"><i class="fa-solid fa-ban"></i></button>
+            <button class="cbtn" onclick="toggleCon()" title="Свернуть"><i class="fa-solid fa-chevron-down" id="cIco"></i></button>
           </div>
         </div>
-        <div class="console-body" id="consoleBody"><div class="console-empty">Консоль пуста.</div></div>
+        <div class="cbd" id="cBd"><div class="ce">Консоль пуста.</div></div>
       </div>
     </div>
   </div>
-  <div class="status-bar">
-    <div class="status-left"><div class="status-item"><div class="status-dot"></div> Готов</div><div class="status-item" id="statusMode">Один файл</div></div>
-    <div class="status-right"><div class="status-item" id="statusCursor">Стр: 1, Стб: 1</div><div class="status-item" id="statusChars">0</div><div class="status-item" id="statusLines">0</div></div>
+
+  <div class="sb">
+    <div class="sl"><div class="si"><div class="sd"></div> Готов</div><div class="si" id="sM">Один файл</div></div>
+    <div class="sr"><div class="si" id="sC">Стр: 1, Стб: 1</div><div class="si" id="sCh">0</div><div class="si" id="sL">0</div></div>
   </div>
-  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="tc2" id="tC"></div>
+
+  <!-- ИИ Чат -->
+  <button id="aiFab" onclick="toggleAI()"><i class="fa-solid fa-robot"></i></button>
+  <div id="aiChat" class="hidden">
+    <div class="aiHead">
+      <h3><i class="fa-solid fa-wand-magic-sparkles"></i> ИИ Ассистент</h3>
+      <button class="cbtn" onclick="toggleAI()" style="font-size:1rem"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="aiMsgs" id="aiMsgs">
+      <div class="aiMsg bot">Привет! Я могу читать и менять ваш код. Попробуйте, например:
+— «Сделай фон градиентом»
+— «Добавь кнопку тёмной темы»
+— «Исправь ошибки»</div>
+    </div>
+    <div class="aiInput">
+      <textarea id="aiIn" placeholder="Введите запрос..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAI()}"></textarea>
+      <button id="aiSend" onclick="sendAI()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
@@ -170,37 +210,173 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
 
   <script>
-    let currentMode='single',autoRun=true,isHorizontal=true,isSwapped=false,debounceTimer=null,activeTab='html',errorCount=0;
-    const singleTemplate=`<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <title>Тест</title>\n  <style>\n    body { background: #1a1a2e; color: #eee; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }\n    h1 { color: #00d4aa; }\n  </style>\n</head>\n<body>\n  <h1>Привет, CodePad!</h1>\n</body>\n</html>`;
-    const multiHtml=`<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <link rel="stylesheet" href="style.css">\n</head>\n<body>\n  <h1>Раздельные файлы</h1>\n  <script src="script.js"><\/script>\n</body>\n</html>`;
-    const multiCss=`h1 { color: #00d4aa; font-family: sans-serif; }`;
-    const multiJs=`console.log('JS загружен!');`;
-    const consoleProxyScript=`<`+`script>(function(){var o={log:console.log,warn:console.warn,error:console.error};function s(l,a){try{var m=Array.from(a).map(function(v){if(v===null)return'null';if(v===undefined)return'undefined';if(typeof v==='object'){try{return JSON.stringify(v,null,2)}catch(e){return String(v)}}return String(v)}).join(' ');parent.postMessage({type:'codepad-console',level:l,message:m},'*')}catch(e){}if(l==='error')o.error.apply(console,a);else if(l==='warn')o.warn.apply(console,a);else o.log.apply(console,a)}console.log=function(){s('log',arguments)};console.warn=function(){s('warn',arguments)};console.error=function(){s('error',arguments)};window.onerror=function(m,u,l){s('error',['Error: '+m+' (строка '+l+')'])};window.addEventListener('unhandledrejection',function(e){s('error',['Promise: '+(e.reason&&e.reason.message?e.reason.message:e.reason)])})})()<`+`/script>`;
-    let editorHtml,editorCss,editorJs;
-    function initEditors(){const b={lineNumbers:true,autoCloseTags:true,autoCloseBrackets:true,matchBrackets:true,styleActiveLine:true,tabSize:2,indentWithTabs:false,lineWrapping:false,theme:'material-darker'};editorHtml=CodeMirror.fromTextArea(document.getElementById('codeHtml'),{...b,mode:'htmlmixed'});editorCss=CodeMirror.fromTextArea(document.getElementById('codeCss'),{...b,mode:'css'});editorJs=CodeMirror.fromTextArea(document.getElementById('codeJs'),{...b,mode:'javascript'});editorHtml.setValue(singleTemplate);editorCss.setValue(multiCss);editorJs.setValue(multiJs);[editorHtml,editorCss,editorJs].forEach(ed=>{ed.on('change',()=>{updateStatus();if(autoRun){clearTimeout(debounceTimer);debounceTimer=setTimeout(runCode,400)}});ed.on('cursorActivity',updateStatus)})}
-    function updateStatus(){const ed=getActiveEditor();if(!ed)return;const v=ed.getValue(),c=ed.getCursor();document.getElementById('statusChars').textContent=v.length+' символов';document.getElementById('statusLines').textContent=ed.lineCount()+' строк';document.getElementById('statusCursor').textContent=`Стр: ${c.line+1}, Стб: ${c.ch+1}`}
-    function getActiveEditor(){if(currentMode==='single')return editorHtml;return{html:editorHtml,css:editorCss,js:editorJs}[activeTab]||editorHtml}
-    function setMode(mode){const p=currentMode;currentMode=mode;document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));const t=document.getElementById('editorTabs');if(mode==='single'){t.style.display='none';if(p==='multi')editorHtml.setValue(singleTemplate);showEditor('html');document.getElementById('statusMode').textContent='Один файл'}else{t.style.display='flex';if(p==='single'){editorHtml.setValue(multiHtml);editorCss.setValue(multiCss);editorJs.setValue(multiJs)}switchToTab('html');document.getElementById('statusMode').textContent='Раздельные файлы'}renderTabs();runCode()}
-    function renderTabs(){const t=document.getElementById('editorTabs');if(currentMode==='single'){t.innerHTML='';return}const tabs=[{id:'html',label:'index.html',dot:'dot-html'},{id:'css',label:'style.css',dot:'dot-css'},{id:'js',label:'script.js',dot:'dot-js'}];t.innerHTML=tabs.map(t=>`<button class="editor-tab ${t.id===activeTab?'active':''}" onclick="switchToTab('${t.id}')"><span class="dot ${t.dot}"></span>${t.label}</button>`).join('')}
-    function switchToTab(tab){activeTab=tab;showEditor(tab);renderTabs();updateStatus();const ed=getActiveEditor();if(ed)setTimeout(()=>{ed.refresh();ed.focus()},30)}
-    function showEditor(tab){['html','css','js'].forEach(t=>{document.getElementById('editorWrapper'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('hidden',t!==tab)});setTimeout(()=>[editorHtml,editorCss,editorJs].forEach(e=>e.refresh()),20)}
-    function buildOutput(){let r;if(currentMode==='single'){r=editorHtml.getValue()}else{const h=editorHtml.getValue(),c=editorCss.getValue(),j=editorJs.getValue();r=h;r=r.replace(/<link[^>]*href=["']style\.css["'][^>]*\/?>/gi,`<style>${c}</style>`);r=r.replace(/<script[^>]*src=["']script\.js["'][^>]*><\/script>/gi,`<script>${j}<\/script>`);if(c.trim()&&!r.includes(c))r=r.replace('</head>',`<style>${c}</style>\n</head>`);if(j.trim()&&!r.includes(j))r=r.replace('</body>',`<script>${j}<\/script>\n</body>`)}if(r.includes('<head>'))r=r.replace('<head>','<head>'+consoleProxyScript);else r=consoleProxyScript+r;return r}
-    function runCode(){clearConsole();document.getElementById('previewFrame').srcdoc=buildOutput()}
-    function refreshPreview(){runCode();showToast('Обновлено')}
-    function clearConsole(){errorCount=0;document.getElementById('consoleBody').innerHTML='<div class="console-empty">Консоль пуста.</div>';updateBadge()}
-    function toggleConsole(){const p=document.getElementById('consolePanel'),i=document.getElementById('consoleToggleIcon');p.classList.toggle('collapsed');i.className=p.classList.contains('collapsed')?'fa-solid fa-chevron-up':'fa-solid fa-chevron-down'}
-    function appendToConsole(level,msg){const b=document.getElementById('consoleBody'),e=b.querySelector('.console-empty');if(e)e.remove();const d=document.createElement('div');d.className='console-msg '+level;const icons={log:'fa-chevron-right',warn:'fa-triangle-exclamation',error:'fa-circle-xmark'};d.innerHTML=`<span class="msg-icon"><i class="fa-solid ${icons[level]||icons.log}"></i></span><span class="msg-text">${msg.replace(/</g,'&lt;')}</span>`;b.appendChild(d);b.scrollTop=b.scrollHeight;if(level==='error'){errorCount++;updateBadge();const p=document.getElementById('consolePanel');if(p.classList.contains('collapsed'))toggleConsole()}}
-    function updateBadge(){const b=document.getElementById('consoleBadge');if(errorCount>0){b.textContent=errorCount;b.classList.add('visible')}else b.classList.remove('visible')}
-    window.addEventListener('message',e=>{if(e.data&&e.data.type==='codepad-console')appendToConsole(e.data.level,e.data.message)});
-    function openInNewTab(){let o;if(currentMode==='single')o=editorHtml.getValue();else{const h=editorHtml.getValue(),c=editorCss.getValue(),j=editorJs.getValue();o=h;o=o.replace(/<link[^>]*href=["']style\.css["'][^>]*\/?>/gi,`<style>${c}</style>`);o=o.replace(/<script[^>]*src=["']script\.js["'][^>]*><\/script>/gi,`<script>${j}<\/script>`);if(c.trim()&&!o.includes(c))o=o.replace('</head>',`<style>${c}</style>\n</head>`);if(j.trim()&&!o.includes(j))o=o.replace('</body>',`<script>${j}<\/script>\n</body>`)}window.open(URL.createObjectURL(new Blob([o],{type:'text/html'})),'_blank');showToast('Открыто в новой вкладке')}
-    function downloadFile(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buildOutput()],{type:'text/html'}));a.download='index.html';a.click();showToast('Скачано')}
-    function toggleAutoRun(){autoRun=!autoRun;document.getElementById('autoRunToggle').classList.toggle('active',autoRun);showToast(autoRun?'Автозапуск вкл':'Автозапуск выкл')}
-    function toggleLayout(){isHorizontal=!isHorizontal;const c=document.getElementById('mainContainer'),r=document.getElementById('resizer'),e=document.getElementById('editorPanel');c.classList.toggle('vertical',!isHorizontal);r.classList.toggle('horizontal',isHorizontal);r.classList.toggle('vertical',!isHorizontal);e.style.width='';e.style.height='';e.style.flex='1';setTimeout(()=>[editorHtml,editorCss,editorJs].forEach(e=>e.refresh()),50);showToast(isHorizontal?'Горизонтально':'Вертикально')}
-    function swapPanels(){isSwapped=!isSwapped;const c=document.getElementById('mainContainer'),e=document.getElementById('editorPanel'),p=document.getElementById('previewPanel'),r=document.getElementById('resizer');if(isSwapped){c.insertBefore(p,e);c.insertBefore(r,e)}else{c.insertBefore(e,r);c.insertBefore(r,p)}showToast('Панели поменяны')}
-    function initResizer(){const r=document.getElementById('resizer'),c=document.getElementById('mainContainer'),e=document.getElementById('editorPanel');let d=false;function s(e){d=true;r.classList.add('active');document.body.style.cursor=isHorizontal?'col-resize':'row-resize';document.body.style.userSelect='none';document.getElementById('previewFrame').style.pointerEvents='none';e.preventDefault()}function m(x,y){if(!d)return;const b=c.getBoundingClientRect();if(isHorizontal){e.style.width=Math.max(15,Math.min(85,((x-b.left)/b.width)*100))+'%';e.style.flex='none'}else{e.style.height=Math.max(15,Math.min(85,((y-b.top)/b.height)*100))+'%';e.style.flex='none'}}function end(){if(!d)return;d=false;r.classList.remove('active');document.body.style.cursor='';document.body.style.userSelect='';document.getElementById('previewFrame').style.pointerEvents='';[editorHtml,editorCss,editorJs].forEach(e=>e.refresh())}r.addEventListener('mousedown',s);document.addEventListener('mousemove',e=>m(e.clientX,e.clientY));document.addEventListener('mouseup',end);r.addEventListener('touchstart',s,{passive:false});document.addEventListener('touchmove',e=>{if(d)m(e.touches[0].clientX,e.touches[0].clientY)},{passive:false});document.addEventListener('touchend',end)}
-    function showToast(msg){const c=document.getElementById('toastContainer'),t=document.createElement('div');t.className='toast';t.textContent=msg;c.appendChild(t);setTimeout(()=>{t.classList.add('fade-out');setTimeout(()=>t.remove(),300)},2000)}
-    document.addEventListener('keydown',e=>{const m=e.ctrlKey||e.metaKey;if(m&&e.key==='Enter'){e.preventDefault();runCode();showToast('Запущено')}if(m&&e.key==='s'){e.preventDefault();downloadFile()}if(m&&e.shiftKey&&(e.key==='O'||e.key==='o')){e.preventDefault();openInNewTab()}});
-    window.addEventListener('DOMContentLoaded',()=>{initEditors();renderTabs();initResizer();updateStatus();setTimeout(runCode,150)});
+    // === Состояние ===
+    let curMode='single',autoRun=true,isHoriz=true,isSwapped=false,debTimer=null,actTab='html',errCnt=0;
+
+    const sTmpl=`<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <title>Моя страница</title>\n  <style>\n    body { background: #1a1a2e; color: #eee; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; flex-direction: column; }\n    h1 { color: #00d4aa; }\n    button { background: #00d4aa; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; color: #000; font-weight: bold; margin-top: 10px; }\n  </style>\n</head>\n<body>\n  <h1>Привет, CodePad!</h1>\n  <p>Попробуй попросить ИИ что-нибудь изменить.</p>\n  <button onclick="alert('Ура!')">Нажми</button>\n</body>\n</html>`;
+    const mH=`<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <link rel="stylesheet" href="style.css">\n</head>\n<body>\n  <h1>Раздельные файлы</h1>\n  <script src="script.js"><\/script>\n</body>\n</html>`;
+    const mC=`h1 { color: #00d4aa; font-family: sans-serif; }`;
+    const mJ=`console.log('JS загружен!');`;
+    const cProxy=`<`+`script>(function(){var o={log:console.log,warn:console.warn,error:console.error};function s(l,a){try{var m=Array.from(a).map(function(v){if(v===null)return'null';if(v===undefined)return'undefined';if(typeof v==='object'){try{return JSON.stringify(v,null,2)}catch(e){return String(v)}}return String(v)}).join(' ');parent.postMessage({type:'cpc',level:l,message:m},'*')}catch(e){}if(l==='error')o.error.apply(console,a);else if(l==='warn')o.warn.apply(console,a);else o.log.apply(console,a)}console.log=function(){s('log',arguments)};console.warn=function(){s('warn',arguments)};console.error=function(){s('error',arguments)};window.onerror=function(m,u,l){s('error',['Error: '+m+' (строка '+l+')'])};window.addEventListener('unhandledrejection',function(e){s('error',['Promise: '+(e.reason&&e.reason.message?e.reason.message:e.reason)])})})()<`+`/script>`;
+
+    let eH,eC,eJ;
+
+    function initEd(){
+      const b={lineNumbers:true,autoCloseTags:true,autoCloseBrackets:true,matchBrackets:true,styleActiveLine:true,tabSize:2,indentWithTabs:false,lineWrapping:false,theme:'material-darker'};
+      eH=CodeMirror.fromTextArea(document.getElementById('cH'),{...b,mode:'htmlmixed'});
+      eC=CodeMirror.fromTextArea(document.getElementById('cC'),{...b,mode:'css'});
+      eJ=CodeMirror.fromTextArea(document.getElementById('cJ'),{...b,mode:'javascript'});
+      eH.setValue(sTmpl);eC.setValue(mC);eJ.setValue(mJ);
+      [eH,eC,eJ].forEach(ed=>{ed.on('change',()=>{updSt();if(autoRun){clearTimeout(debTimer);debTimer=setTimeout(runCode,400)}});ed.on('cursorActivity',updSt)});
+    }
+
+    function updSt(){const ed=getAE();if(!ed)return;const v=ed.getValue(),c=ed.getCursor();document.getElementById('sCh').textContent=v.length+' сим';document.getElementById('sL').textContent=ed.lineCount()+' стр';document.getElementById('sC').textContent=`Стр: ${c.line+1}, Стб: ${c.ch+1}`}
+    function getAE(){if(curMode==='single')return eH;return{html:eH,css:eC,js:eJ}[actTab]||eH}
+
+    function setMode(m){const p=curMode;curMode=m;document.querySelectorAll('.mb').forEach(b=>b.classList.toggle('a',b.dataset.mode===m));const t=document.getElementById('et');if(m==='single'){t.style.display='none';if(p==='multi')eH.setValue(sTmpl);showEd('html');document.getElementById('sM').textContent='Один файл'}else{t.style.display='flex';if(p==='single'){eH.setValue(mH);eC.setValue(mC);eJ.setValue(mJ)}swTab('html');document.getElementById('sM').textContent='Раздельные'}renTabs();runCode()}
+    function renTabs(){const t=document.getElementById('et');if(curMode==='single'){t.innerHTML='';return}const tabs=[{id:'html',l:'index.html',d:'dh'},{id:'css',l:'style.css',d:'dc'},{id:'js',l:'script.js',d:'dj'}];t.innerHTML=tabs.map(t=>`<button class="etab ${t.id===actTab?'a':''}" onclick="swTab('${t.id}')"><span class="dot ${t.d}"></span>${t.l}</button>`).join('')}
+    function swTab(t){actTab=t;showEd(t);renTabs();updSt();const ed=getAE();if(ed)setTimeout(()=>{ed.refresh();ed.focus()},30)}
+    function showEd(t){['html','css','js'].forEach(x=>{document.getElementById('ew'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('h',x!==t)});setTimeout(()=>[eH,eC,eJ].forEach(e=>e.refresh()),20)}
+
+    function buildOut(){let r;if(curMode==='single'){r=eH.getValue()}else{const h=eH.getValue(),c=eC.getValue(),j=eJ.getValue();r=h;r=r.replace(/<link[^>]*href=["']style\.css["'][^>]*\/?>/gi,`<style>${c}</style>`);r=r.replace(/<script[^>]*src=["']script\.js["'][^>]*><\/script>/gi,`<script>${j}<\/script>`);if(c.trim()&&!r.includes(c))r=r.replace('</head>',`<style>${c}</style>\n</head>`);if(j.trim()&&!r.includes(j))r=r.replace('</body>',`<script>${j}<\/script>\n</body>`)}if(r.includes('<head>'))r=r.replace('<head>','<head>'+cProxy);else r=cProxy+r;return r}
+    function runCode(){clearCon();document.getElementById('pf').srcdoc=buildOut()}
+    function refreshPreview(){runCode();toast('Обновлено')}
+
+    function clearCon(){errCnt=0;document.getElementById('cBd').innerHTML='<div class="ce">Консоль пуста.</div>';updBdg()}
+    function toggleCon(){const p=document.getElementById('conP'),i=document.getElementById('cIco');p.classList.toggle('col');i.className=p.classList.contains('col')?'fa-solid fa-chevron-up':'fa-solid fa-chevron-down'}
+    function appCon(lv,msg){const b=document.getElementById('cBd'),e=b.querySelector('.ce');if(e)e.remove();const d=document.createElement('div');d.className='cm '+lv;const ico={log:'fa-chevron-right',warn:'fa-triangle-exclamation',error:'fa-circle-xmark'};d.innerHTML=`<span class="mi"><i class="fa-solid ${ico[lv]||ico.log}"></i></span><span class="mt">${msg.replace(/</g,'&lt;')}</span>`;b.appendChild(d);b.scrollTop=b.scrollHeight;if(lv==='error'){errCnt++;updBdg();const p=document.getElementById('conP');if(p.classList.contains('col'))toggleCon()}}
+    function updBdg(){const b=document.getElementById('cBg');if(errCnt>0){b.textContent=errCnt;b.classList.add('v')}else b.classList.remove('v')}
+    window.addEventListener('message',e=>{if(e.data&&e.data.type==='cpc')appCon(e.data.level,e.data.message)});
+
+    function openInNewTab(){let o;if(curMode==='single')o=eH.getValue();else{const h=eH.getValue(),c=eC.getValue(),j=eJ.getValue();o=h;o=o.replace(/<link[^>]*href=["']style\.css["'][^>]*\/?>/gi,`<style>${c}</style>`);o=o.replace(/<script[^>]*src=["']script\.js["'][^>]*><\/script>/gi,`<script>${j}<\/script>`);if(c.trim()&&!o.includes(c))o=o.replace('</head>',`<style>${c}</style>\n</head>`);if(j.trim()&&!o.includes(j))o=o.replace('</body>',`<script>${j}<\/script>\n</body>`)}window.open(URL.createObjectURL(new Blob([o],{type:'text/html'})),'_blank');toast('Открыто')}
+    function downloadFile(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buildOut()],{type:'text/html'}));a.download='index.html';a.click();toast('Скачано')}
+    function toggleAutoRun(){autoRun=!autoRun;document.getElementById('arT').classList.toggle('a',autoRun);toast(autoRun?'Автозапуск вкл':'Автозапуск выкл')}
+    function toggleLayout(){isHoriz=!isHoriz;const c=document.getElementById('mc'),r=document.getElementById('rz'),e=document.getElementById('ep');c.classList.toggle('v',!isHoriz);r.classList.toggle('hz',isHoriz);r.classList.toggle('vt',!isHoriz);e.style.width='';e.style.height='';e.style.flex='1';setTimeout(()=>[eH,eC,eJ].forEach(e=>e.refresh()),50);toast(isHoriz?'Горизонтально':'Вертикально')}
+    function swapPanels(){isSwapped=!isSwapped;const c=document.getElementById('mc'),e=document.getElementById('ep'),p=document.getElementById('pp'),r=document.getElementById('rz');if(isSwapped){c.insertBefore(p,e);c.insertBefore(r,e)}else{c.insertBefore(e,r);c.insertBefore(r,p)}toast('Панели поменяны')}
+
+    function initRz(){const r=document.getElementById('rz'),c=document.getElementById('mc'),ep=document.getElementById('ep');let d=false;function s(e){d=true;r.classList.add('a');document.body.style.cursor=isHoriz?'col-resize':'row-resize';document.body.style.userSelect='none';document.getElementById('pf').style.pointerEvents='none';e.preventDefault()}function m(x,y){if(!d)return;const b=c.getBoundingClientRect();if(isHoriz){ep.style.width=Math.max(15,Math.min(85,((x-b.left)/b.width)*100))+'%';ep.style.flex='none'}else{ep.style.height=Math.max(15,Math.min(85,((y-b.top)/b.height)*100))+'%';ep.style.flex='none'}}function end(){if(!d)return;d=false;r.classList.remove('a');document.body.style.cursor='';document.body.style.userSelect='';document.getElementById('pf').style.pointerEvents='';[eH,eC,eJ].forEach(e=>e.refresh())}r.addEventListener('mousedown',s);document.addEventListener('mousemove',e=>m(e.clientX,e.clientY));document.addEventListener('mouseup',end);r.addEventListener('touchstart',s,{passive:false});document.addEventListener('touchmove',e=>{if(d)m(e.touches[0].clientX,e.touches[0].clientY)},{passive:false});document.addEventListener('touchend',end)}
+
+    function toast(msg){const c=document.getElementById('tC'),t=document.createElement('div');t.className='t2';t.textContent=msg;c.appendChild(t);setTimeout(()=>{t.classList.add('fo');setTimeout(()=>t.remove(),300)},2000)}
+
+    document.addEventListener('keydown',e=>{const m=e.ctrlKey||e.metaKey;if(m&&e.key==='Enter'){e.preventDefault();runCode();toast('Запущено')}if(m&&e.key==='s'){e.preventDefault();downloadFile()}if(m&&e.shiftKey&&(e.key==='O'||e.key==='o')){e.preventDefault();openInNewTab()}});
+
+    // === ИИ ЧАТ ===
+    let aiOpen = false;
+    let aiLoading = false;
+    let pendingCode = null;
+
+    function toggleAI() {
+      aiOpen = !aiOpen;
+      document.getElementById('aiChat').classList.toggle('hidden', !aiOpen);
+      if (aiOpen) document.getElementById('aiIn').focus();
+    }
+
+    async function sendAI() {
+      if (aiLoading) return;
+      const input = document.getElementById('aiIn');
+      const prompt = input.value.trim();
+      if (!prompt) return;
+
+      input.value = '';
+      input.style.height = 'auto';
+      addAIMsg('user', prompt);
+
+      const msgs = document.getElementById('aiMsgs');
+      const typing = document.createElement('div');
+      typing.className = 'aiTyping';
+      typing.innerHTML = '<span></span><span></span><span></span>';
+      msgs.appendChild(typing);
+      msgs.scrollTop = msgs.scrollHeight;
+
+      aiLoading = true;
+      document.getElementById('aiSend').disabled = true;
+
+      try {
+        const code = eH.getValue();
+        const sysPrompt = `Ты — ИИ-помощник программиста. Пользователь даст тебе HTML/CSS/JS код (в одном файле) и задачу. Если нужно изменить код, верни ПОЛНОСТЬЮ весь обновленный код в одном блоке \`\`\`html ... \`\`\`. Больше ничего не добавляй до или после кода. Если нужно объяснить — просто ответь текстом, без полного кода. Отвечай на русском.`;
+        const userMsg = `Вот мой код:\n\`\`\`html\n${code}\n\`\`\`\n\nМой запрос: ${prompt}`;
+
+        const resp = await fetch("https://text.pollinations.ai/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              { role: "system", content: sysPrompt },
+              { role: "user", content: userMsg }
+            ],
+            model: "openai",
+            temperature: 0.6
+          })
+        });
+
+        if (!resp.ok) throw new Error('Сеть недоступна');
+
+        const text = await resp.text();
+        typing.remove();
+
+        // Извлекаем код из блока ```html ... ```
+        const codeMatch = text.match(/```(?:html)?\s*\n([\s\S]*?)\n```/);
+        if (codeMatch) {
+          const newCode = codeMatch[1];
+          pendingCode = newCode;
+          
+          const msgDiv = document.createElement('div');
+          msgDiv.className = 'aiMsg bot';
+          msgDiv.innerHTML = `Код сгенерирован! Нажмите кнопку ниже, чтобы применить.`;
+          
+          const applyBtn = document.createElement('button');
+          applyBtn.className = 'aiApply';
+          applyBtn.textContent = 'Применить код';
+          applyBtn.onclick = () => {
+            eH.setValue(pendingCode);
+            pendingCode = null;
+            applyBtn.textContent = 'Применено!';
+            applyBtn.disabled = true;
+            applyBtn.style.opacity = '0.5';
+            toast('Код применён');
+          };
+          
+          msgDiv.appendChild(applyBtn);
+          msgs.appendChild(msgDiv);
+        } else {
+          // Просто текстовый ответ
+          const formatted = text
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+          addAIMsg('bot', formatted);
+        }
+      } catch (err) {
+        typing.remove();
+        addAIMsg('bot', 'Ошибка: ' + err.message + '. Попробуйте ещё раз.');
+      }
+
+      aiLoading = false;
+      document.getElementById('aiSend').disabled = false;
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function addAIMsg(role, text) {
+      const msgs = document.getElementById('aiMsgs');
+      const div = document.createElement('div');
+      div.className = 'aiMsg ' + role;
+      div.innerHTML = text;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    // Автоматическое увеличение textarea
+    document.addEventListener('DOMContentLoaded', () => {
+      const aiIn = document.getElementById('aiIn');
+      aiIn.addEventListener('input', () => {
+        aiIn.style.height = 'auto';
+        aiIn.style.height = Math.min(aiIn.scrollHeight, 100) + 'px';
+      });
+    });
+
+    // === Запуск ===
+    window.addEventListener('DOMContentLoaded',()=>{
+      initEd();renTabs();initRz();updSt();setTimeout(runCode,150);
+    });
   </script>
 </body>
 </html>
