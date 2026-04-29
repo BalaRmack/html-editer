@@ -1,95 +1,1039 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Мой HTML Редактор</title>
-    <script src="https://cloudflare.com"></script>
-    <style>
-        body, html { margin: 0; height: 100%; overflow: hidden; font-family: sans-serif; }
-        .toolbar { height: 40px; background: #202124; color: white; display: flex; align-items: center; padding: 0 15px; justify-content: space-between; }
-        .container { display: flex; height: calc(100% - 40px); width: 100%; position: relative; }
-        #editor { width: 50%; height: 100%; }
-        #preview { width: 50%; height: 100%; border: none; background: white; }
-        .resizer { width: 5px; cursor: col-resize; background: #444; height: 100%; z-index: 10; }
-        button { cursor: pointer; background: #4CAF50; color: white; border: none; padding: 5px 15px; border-radius: 4px; transition: 0.3s; }
-        button:hover { background: #45a049; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodePad — HTML Редактор</title>
+
+  <!-- CodeMirror -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Шрифты -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #1c2333;
+      --fg: #c9d1d9;
+      --fg-muted: #8b949e;
+      --accent: #00d4aa;
+      --accent-hover: #00f0c0;
+      --accent-dim: rgba(0,212,170,0.08);
+      --border: #30363d;
+      --tab-active: #0d1117;
+      --tab-inactive: #1c2333;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* === Тулбар === */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    .toolbar-left, .toolbar-center, .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: -0.5px;
+      margin-right: 8px;
+    }
+
+    .logo i { font-size: 1.2rem; }
+
+    .mode-switch {
+      display: flex;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 3px;
+      border: 1px solid var(--border);
+    }
+
+    .mode-btn {
+      padding: 6px 14px;
+      border: none;
+      background: transparent;
+      color: var(--fg-muted);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .mode-btn.active {
+      background: var(--accent);
+      color: #0d1117;
+    }
+
+    .mode-btn:hover:not(.active) { color: var(--fg); }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--fg);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #0d1117;
+      border-color: var(--accent);
+    }
+
+    .btn.primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      color: #0d1117;
+    }
+
+    .btn.icon-only { padding: 7px 10px; }
+
+    .auto-run-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--fg-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-switch {
+      width: 32px;
+      height: 18px;
+      background: var(--border);
+      border-radius: 9px;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .toggle-switch.active { background: var(--accent); }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s;
+    }
+
+    .toggle-switch.active::after { transform: translateX(14px); }
+
+    /* === Основной контейнер === */
+    .main-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .main-container.vertical { flex-direction: column; }
+
+    /* === Панель редактора === */
+    .editor-panel {
+      display: flex;
+      flex-direction: column;
+      min-width: 200px;
+      min-height: 150px;
+      overflow: hidden;
+    }
+
+    .editor-tabs {
+      display: flex;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .editor-tab {
+      padding: 8px 18px;
+      background: var(--tab-inactive);
+      color: var(--fg-muted);
+      border: none;
+      border-right: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .editor-tab.active {
+      background: var(--tab-active);
+      color: var(--accent);
+    }
+
+    .editor-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .editor-tab:hover:not(.active) {
+      color: var(--fg);
+      background: rgba(0,212,170,0.05);
+    }
+
+    .editor-tab .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-html { background: #f85149; }
+    .dot-css { background: #58a6ff; }
+    .dot-js { background: #d29922; }
+
+    .editor-wrapper {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .editor-wrapper.hidden { display: none; }
+
+    .editor-wrapper .CodeMirror {
+      height: 100%;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* === Разделитель === */
+    .resizer {
+      flex-shrink: 0;
+      background: var(--border);
+      position: relative;
+      z-index: 10;
+      transition: background 0.15s;
+    }
+
+    .resizer:hover, .resizer.active { background: var(--accent); }
+
+    .resizer.horizontal { width: 4px; cursor: col-resize; }
+    .resizer.vertical { height: 4px; cursor: row-resize; }
+
+    /* === Панель превью === */
+    .preview-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 200px;
+      min-height: 150px;
+      overflow: hidden;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .preview-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--fg-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preview-title i { color: var(--accent); }
+
+    .preview-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--fg-muted);
+      background: var(--bg);
+      padding: 3px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      flex: 1;
+      margin: 0 12px;
+    }
+
+    .preview-iframe-wrapper {
+      flex: 1;
+      background: #fff;
+      position: relative;
+    }
+
+    .preview-iframe-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* === Строка состояния === */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 16px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--fg-muted);
+      flex-shrink: 0;
+    }
+
+    .status-left, .status-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* === Toast === */
+    .toast-container {
+      position: fixed;
+      top: 60px; right: 16px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      padding: 10px 18px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 8px;
+      color: var(--fg);
+      font-size: 0.85rem;
+      font-family: 'Space Grotesk', sans-serif;
+      animation: toastIn 0.3s ease;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .toast.fade-out { animation: toastOut 0.3s ease forwards; }
+
+    @keyframes toastIn {
+      from { transform: translateX(100px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes toastOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100px); opacity: 0; }
+    }
+
+    /* === CodeMirror переопределения === */
+    .CodeMirror { background: var(--bg) !important; color: var(--fg) !important; }
+    .CodeMirror-gutters {
+      background: var(--bg-secondary) !important;
+      border-right: 1px solid var(--border) !important;
+    }
+    .CodeMirror-linenumber { color: var(--fg-muted) !important; font-size: 0.75rem; }
+    .CodeMirror-cursor { border-left-color: var(--accent) !important; }
+    .CodeMirror-selected { background: rgba(0,212,170,0.15) !important; }
+    .CodeMirror-activeline-background { background: rgba(0,212,170,0.05) !important; }
+    .CodeMirror-focused .CodeMirror-selected { background: rgba(0,212,170,0.2) !important; }
+
+    /* === Скроллбар === */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--fg-muted); }
+
+    /* === Адаптивность === */
+    @media (max-width: 768px) {
+      .toolbar { padding: 6px 10px; flex-wrap: wrap; gap: 6px; }
+      .btn span { display: none; }
+      .mode-btn { padding: 5px 10px; font-size: 0.75rem; }
+      .preview-url { display: none; }
+      .logo { font-size: 1rem; }
+      .toolbar-center { display: none; }
+    }
+  </style>
 </head>
 <body>
 
-<div class="toolbar">
-    <span>HTML Live Editor</span>
-    <button onclick="openInNewTab()">Открыть в новой вкладке ↗</button>
-</div>
+  <!-- Тулбар -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="logo">
+        <i class="fa-solid fa-code"></i>
+        CodePad
+      </div>
+      <div class="mode-switch">
+        <button class="mode-btn active" data-mode="single" onclick="setMode('single')">Один файл</button>
+        <button class="mode-btn" data-mode="multi" onclick="setMode('multi')">Раздельные</button>
+      </div>
+    </div>
 
-<div class="container" id="main-container">
-    <div id="editor"></div>
-    <div class="resizer" id="resizer"></div>
-    <iframe id="preview"></iframe>
-</div>
+    <div class="toolbar-center">
+      <label class="auto-run-toggle" onclick="toggleAutoRun()">
+        <div class="toggle-switch active" id="autoRunToggle"></div>
+        Автозапуск
+      </label>
+    </div>
 
-<script>
-    let editor;
-    const preview = document.getElementById('preview');
+    <div class="toolbar-right">
+      <button class="btn icon-only" onclick="swapPanels()" title="Поменять панели местами">
+        <i class="fa-solid fa-right-left"></i>
+      </button>
+      <button class="btn icon-only" onclick="toggleLayout()" title="Горизонтально / Вертикально">
+        <i class="fa-solid fa-up-down-left-right"></i>
+      </button>
+      <button class="btn primary" onclick="runCode()" title="Запустить (Ctrl+Enter)">
+        <i class="fa-solid fa-play"></i>
+        <span>Запустить</span>
+      </button>
+      <button class="btn" onclick="openInNewTab()" title="Открыть в новой вкладке">
+        <i class="fa-solid fa-up-right-from-square"></i>
+        <span>Открыть</span>
+      </button>
+      <button class="btn" onclick="downloadFile()" title="Скачать (Ctrl+S)">
+        <i class="fa-solid fa-download"></i>
+        <span>Скачать</span>
+      </button>
+    </div>
+  </div>
 
-    // Инициализация редактора Monaco (как в VS Code)
-    require.config({ paths: { vs: 'https://cloudflare.com' } });
-    require(['vs/editor/editor.main'], function () {
-        editor = monaco.editor.create(document.getElementById('editor'), {
-            value: `<!DOCTYPE html>\n<html>\n<head>\n<style>\n  body { font-family: sans-serif; text-align: center; padding-top: 50px; }\n  h1 { color: #4CAF50; }\n</style>\n</head>\n<body>\n  <h1>Привет, GitHub!</h1>\n  <p>Отредактируй этот текст слева.</p>\n</body>\n</html>`,
-            language: 'html',
-            theme: 'vs-dark',
-            automaticLayout: true
-        });
+  <!-- Основной контейнер -->
+  <div class="main-container" id="mainContainer">
+    <div class="editor-panel" id="editorPanel" style="width:50%;">
+      <div class="editor-tabs" id="editorTabs" style="display:none;"></div>
+      <div class="editor-wrapper" id="editorWrapperHtml">
+        <textarea id="codeHtml"></textarea>
+      </div>
+      <div class="editor-wrapper hidden" id="editorWrapperCss">
+        <textarea id="codeCss"></textarea>
+      </div>
+      <div class="editor-wrapper hidden" id="editorWrapperJs">
+        <textarea id="codeJs"></textarea>
+      </div>
+    </div>
 
-        // Обновление предпросмотра при вводе текста
-        editor.onDidChangeModelContent(() => {
-            updatePreview();
-        });
+    <div class="resizer horizontal" id="resizer"></div>
 
-        updatePreview();
-    });
+    <div class="preview-panel" id="previewPanel">
+      <div class="preview-header">
+        <div class="preview-title">
+          <i class="fa-solid fa-eye"></i>
+          Предпросмотр
+        </div>
+        <div class="preview-url">localhost:preview</div>
+        <button class="btn icon-only" onclick="refreshPreview()" title="Обновить" style="padding:4px 8px;font-size:0.75rem;">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+      </div>
+      <div class="preview-iframe-wrapper">
+        <iframe id="previewFrame" sandbox="allow-scripts allow-modals allow-same-origin allow-forms allow-popups"></iframe>
+      </div>
+    </div>
+  </div>
 
-    function updatePreview() {
-        const code = editor.getValue();
-        const blob = new Blob([code], { type: 'text/html' });
-        preview.src = URL.createObjectURL(blob);
+  <!-- Строка состояния -->
+  <div class="status-bar">
+    <div class="status-left">
+      <div class="status-item"><div class="status-dot"></div> Готов</div>
+      <div class="status-item" id="statusMode">Один файл</div>
+    </div>
+    <div class="status-right">
+      <div class="status-item" id="statusCursor">Стр: 1, Стб: 1</div>
+      <div class="status-item" id="statusChars">0 символов</div>
+      <div class="status-item" id="statusLines">0 строк</div>
+    </div>
+  </div>
+
+  <!-- Toast контейнер -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- CodeMirror скрипты -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+
+  <script>
+    // === Состояние приложения ===
+    let currentMode = 'single';
+    let autoRun = true;
+    let isHorizontal = true;
+    let isSwapped = false;
+    let debounceTimer = null;
+    let activeTab = 'html';
+
+    // === Шаблоны кода ===
+    const singleTemplate = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Моя страница</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    function openInNewTab() {
-        const code = editor.getValue();
-        const newWindow = window.open();
-        newWindow.document.write(code);
-        newWindow.document.close();
+    .card {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 48px 40px;
+      text-align: center;
+      max-width: 480px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     }
 
-    // Логика перемещения разделителя (изменение ширины)
-    const resizer = document.getElementById('resizer');
-    const leftSide = document.getElementById('editor');
-    const container = document.getElementById('main-container');
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(90deg, #00d4aa, #7b68ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
-    let isResizing = false;
+    p {
+      color: rgba(255, 255, 255, 0.65);
+      line-height: 1.6;
+      margin-bottom: 28px;
+      font-size: 1rem;
+    }
 
-    resizer.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        document.body.style.cursor = 'col-resize';
-    });
+    button {
+      background: linear-gradient(135deg, #00d4aa, #00b894);
+      color: #0d1117;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
 
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        let offsetLeft = e.clientX;
-        let leftWidth = (offsetLeft / container.offsetWidth) * 100;
-        if (leftWidth > 10 && leftWidth < 90) {
-            leftSide.style.width = leftWidth + '%';
-            preview.style.width = (100 - leftWidth) + '%';
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 212, 170, 0.35);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>CodePad</h1>
+    <p>Начните писать код — результат появится справа в реальном времени. Переключайте режимы, перемещайте панели и открывайте результат в новой вкладке.</p>
+    <button onclick="this.textContent = 'Отлично!'">Нажми меня</button>
+  </div>
+</body>
+</html>`;
+
+    const multiHtml = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Моя страница</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card">
+    <h1>CodePad</h1>
+    <p>Режим раздельных файлов. Редактируйте HTML, CSS и JavaScript в разных вкладках.</p>
+    <button id="actionBtn">Нажми меня</button>
+    <div class="counter" id="counter">Кликов: 0</div>
+  </div>
+  <script src="script.js"><\/script>
+</body>
+</html>`;
+
+    const multiCss = `* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+  color: #fff;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 48px 40px;
+  text-align: center;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  background: linear-gradient(90deg, #00d4aa, #7b68ee);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+p {
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.6;
+  margin-bottom: 28px;
+  font-size: 1rem;
+}
+
+button {
+  background: linear-gradient(135deg, #00d4aa, #00b894);
+  color: #0d1117;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin-bottom: 16px;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 212, 170, 0.35);
+}
+
+.counter {
+  font-family: 'Courier New', monospace;
+  font-size: 1.1rem;
+  color: #00d4aa;
+  margin-top: 8px;
+  transition: transform 0.15s;
+}`;
+
+    const multiJs = `let count = 0;
+const btn = document.getElementById('actionBtn');
+const counter = document.getElementById('counter');
+
+btn.addEventListener('click', () => {
+  count++;
+  counter.textContent = '\\u041A\\u043B\\u0438\\u043A\\u043E\\u0432: ' + count;
+  counter.style.transform = 'scale(1.2)';
+  setTimeout(() => {
+    counter.style.transform = 'scale(1)';
+  }, 150);
+});
+
+console.log('JavaScript \\u0437\\u0430\\u0433\\u0440\\u0443\\u0436\\u0435\\u043D!');`;
+
+    // === Редакторы ===
+    let editorHtml, editorCss, editorJs;
+
+    function initEditors() {
+      const base = {
+        lineNumbers: true,
+        autoCloseTags: true,
+        autoCloseBrackets: true,
+        matchBrackets: true,
+        styleActiveLine: true,
+        tabSize: 2,
+        indentWithTabs: false,
+        lineWrapping: false,
+        theme: 'material-darker'
+      };
+
+      editorHtml = CodeMirror.fromTextArea(document.getElementById('codeHtml'), {
+        ...base, mode: 'htmlmixed'
+      });
+      editorCss = CodeMirror.fromTextArea(document.getElementById('codeCss'), {
+        ...base, mode: 'css'
+      });
+      editorJs = CodeMirror.fromTextArea(document.getElementById('codeJs'), {
+        ...base, mode: 'javascript'
+      });
+
+      // Начальный контент
+      editorHtml.setValue(singleTemplate);
+      editorCss.setValue(multiCss);
+      editorJs.setValue(multiJs);
+
+      // Слушатели изменений
+      [editorHtml, editorCss, editorJs].forEach(ed => {
+        ed.on('change', () => {
+          updateStatus();
+          if (autoRun) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(runCode, 400);
+          }
+        });
+        ed.on('cursorActivity', updateStatus);
+      });
+    }
+
+    // === Строка состояния ===
+    function updateStatus() {
+      const ed = getActiveEditor();
+      if (!ed) return;
+      const val = ed.getValue();
+      const cursor = ed.getCursor();
+      document.getElementById('statusChars').textContent = val.length + ' символов';
+      document.getElementById('statusLines').textContent = ed.lineCount() + ' строк';
+      document.getElementById('statusCursor').textContent = `Стр: ${cursor.line + 1}, Стб: ${cursor.ch + 1}`;
+    }
+
+    function getActiveEditor() {
+      if (currentMode === 'single') return editorHtml;
+      return { html: editorHtml, css: editorCss, js: editorJs }[activeTab] || editorHtml;
+    }
+
+    // === Режимы ===
+    function setMode(mode) {
+      const prevMode = currentMode;
+      currentMode = mode;
+
+      document.querySelectorAll('.mode-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === mode)
+      );
+
+      const tabsEl = document.getElementById('editorTabs');
+
+      if (mode === 'single') {
+        tabsEl.style.display = 'none';
+        // При первом переходе в single — ставим singleTemplate, если до этого был multi
+        if (prevMode === 'multi') {
+          editorHtml.setValue(singleTemplate);
         }
+        showEditor('html');
+        document.getElementById('statusMode').textContent = 'Один файл';
+      } else {
+        tabsEl.style.display = 'flex';
+        // При первом переходе в multi — ставим multi-шаблоны
+        if (prevMode === 'single') {
+          editorHtml.setValue(multiHtml);
+          editorCss.setValue(multiCss);
+          editorJs.setValue(multiJs);
+        }
+        switchToTab('html');
+        document.getElementById('statusMode').textContent = 'Раздельные файлы';
+      }
+
+      renderTabs();
+      runCode();
+    }
+
+    function renderTabs() {
+      const tabsEl = document.getElementById('editorTabs');
+      if (currentMode === 'single') { tabsEl.innerHTML = ''; return; }
+
+      const tabs = [
+        { id: 'html', label: 'index.html', dot: 'dot-html' },
+        { id: 'css',  label: 'style.css',  dot: 'dot-css'  },
+        { id: 'js',   label: 'script.js',  dot: 'dot-js'   }
+      ];
+
+      tabsEl.innerHTML = tabs.map(t => `
+        <button class="editor-tab ${t.id === activeTab ? 'active' : ''}" onclick="switchToTab('${t.id}')">
+          <span class="dot ${t.dot}"></span>
+          ${t.label}
+        </button>
+      `).join('');
+    }
+
+    function switchToTab(tab) {
+      activeTab = tab;
+      showEditor(tab);
+      renderTabs();
+      updateStatus();
+      const ed = getActiveEditor();
+      if (ed) setTimeout(() => { ed.refresh(); ed.focus(); }, 30);
+    }
+
+    function showEditor(tab) {
+      ['html', 'css', 'js'].forEach(t => {
+        document.getElementById('editorWrapper' + t.charAt(0).toUpperCase() + t.slice(1))
+          .classList.toggle('hidden', t !== tab);
+      });
+      setTimeout(() => [editorHtml, editorCss, editorJs].forEach(e => e.refresh()), 20);
+    }
+
+    // === Компиляция и запуск ===
+    function buildOutput() {
+      if (currentMode === 'single') return editorHtml.getValue();
+
+      const html = editorHtml.getValue();
+      const css  = editorCss.getValue();
+      const js   = editorJs.getValue();
+      let result = html;
+
+      // Заменяем <link> на <style>
+      result = result.replace(
+        /<link[^>]*href=["']style\.css["'][^>]*\/?>/gi,
+        `<style>${css}</style>`
+      );
+      // Заменяем <script src> на inline <script>
+      result = result.replace(
+        /<script[^>]*src=["']script\.js["'][^>]*><\/script>/gi,
+        `<script>${js}<\/script>`
+      );
+
+      // Если замен не произошло — вставляем принудительно
+      if (css.trim() && !result.includes(css)) {
+        result = result.replace('</head>', `<style>${css}</style>\n</head>`);
+      }
+      if (js.trim() && !result.includes(js)) {
+        result = result.replace('</body>', `<script>${js}<\/script>\n</body>`);
+      }
+
+      return result;
+    }
+
+    function runCode() {
+      const iframe = document.getElementById('previewFrame');
+      iframe.srcdoc = buildOutput();
+    }
+
+    function refreshPreview() {
+      runCode();
+      showToast('Предпросмотр обновлён');
+    }
+
+    // === Открыть в новой вкладке ===
+    function openInNewTab() {
+      const blob = new Blob([buildOutput()], { type: 'text/html' });
+      window.open(URL.createObjectURL(blob), '_blank');
+      showToast('Открыто в новой вкладке');
+    }
+
+    // === Скачать ===
+    function downloadFile() {
+      const blob = new Blob([buildOutput()], { type: 'text/html' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'index.html';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('Файл скачан');
+    }
+
+    // === Автозапуск ===
+    function toggleAutoRun() {
+      autoRun = !autoRun;
+      document.getElementById('autoRunToggle').classList.toggle('active', autoRun);
+      showToast(autoRun ? 'Автозапуск включён' : 'Автозапуск выключен');
+    }
+
+    // === Переключение расположения ===
+    function toggleLayout() {
+      isHorizontal = !isHorizontal;
+      const container = document.getElementById('mainContainer');
+      const resizer = document.getElementById('resizer');
+
+      container.classList.toggle('vertical', !isHorizontal);
+      resizer.classList.toggle('horizontal', isHorizontal);
+      resizer.classList.toggle('vertical', !isHorizontal);
+
+      // Сбрасываем размеры
+      const ep = document.getElementById('editorPanel');
+      ep.style.width = '';
+      ep.style.height = '';
+      ep.style.flex = '1';
+
+      setTimeout(() => [editorHtml, editorCss, editorJs].forEach(e => e.refresh()), 50);
+      showToast(isHorizontal ? 'Горизонтальное расположение' : 'Вертикальное расположение');
+    }
+
+    // === Поменять панели местами ===
+    function swapPanels() {
+      isSwapped = !isSwapped;
+      const container = document.getElementById('mainContainer');
+      const editor = document.getElementById('editorPanel');
+      const preview = document.getElementById('previewPanel');
+      const resizer = document.getElementById('resizer');
+
+      if (isSwapped) {
+        container.insertBefore(preview, editor);
+        container.insertBefore(resizer, editor);
+      } else {
+        container.insertBefore(editor, resizer);
+        container.insertBefore(resizer, preview);
+      }
+
+      showToast('Панели поменяны местами');
+    }
+
+    // === Перетаскивание разделителя ===
+    function initResizer() {
+      const resizer = document.getElementById('resizer');
+      const container = document.getElementById('mainContainer');
+      const editorPanel = document.getElementById('editorPanel');
+      let dragging = false;
+
+      function onStart(e) {
+        dragging = true;
+        resizer.classList.add('active');
+        document.body.style.cursor = isHorizontal ? 'col-resize' : 'row-resize';
+        document.body.style.userSelect = 'none';
+        document.getElementById('previewFrame').style.pointerEvents = 'none';
+        e.preventDefault();
+      }
+
+      function onMove(clientX, clientY) {
+        if (!dragging) return;
+        const rect = container.getBoundingClientRect();
+
+        if (isHorizontal) {
+          const pct = ((clientX - rect.left) / rect.width) * 100;
+          editorPanel.style.width = Math.max(15, Math.min(85, pct)) + '%';
+          editorPanel.style.flex = 'none';
+        } else {
+          const pct = ((clientY - rect.top) / rect.height) * 100;
+          editorPanel.style.height = Math.max(15, Math.min(85, pct)) + '%';
+          editorPanel.style.flex = 'none';
+        }
+      }
+
+      function onEnd() {
+        if (!dragging) return;
+        dragging = false;
+        resizer.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.getElementById('previewFrame').style.pointerEvents = '';
+        [editorHtml, editorCss, editorJs].forEach(e => e.refresh());
+      }
+
+      // Мышь
+      resizer.addEventListener('mousedown', onStart);
+      document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+      document.addEventListener('mouseup', onEnd);
+
+      // Тач
+      resizer.addEventListener('touchstart', onStart, { passive: false });
+      document.addEventListener('touchmove', e => {
+        if (dragging) onMove(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: false });
+      document.addEventListener('touchend', onEnd);
+    }
+
+    // === Toast ===
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+      }, 2000);
+    }
+
+    // === Горячие клавиши ===
+    document.addEventListener('keydown', e => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key === 'Enter') { e.preventDefault(); runCode(); showToast('Код выполнен'); }
+      if (mod && e.key === 's') { e.preventDefault(); downloadFile(); }
+      if (mod && e.shiftKey && (e.key === 'O' || e.key === 'o')) { e.preventDefault(); openInNewTab(); }
     });
 
-    document.addEventListener('mouseup', () => {
-        isResizing = false;
-        document.body.style.cursor = 'default';
+    // === Запуск ===
+    window.addEventListener('DOMContentLoaded', () => {
+      initEditors();
+      renderTabs();
+      initResizer();
+      updateStatus();
+      setTimeout(runCode, 150);
     });
-</script>
-
+  </script>
 </body>
 </html>
