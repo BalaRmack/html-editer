@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Мой HTML Редактор</title>
+    <script src="https://cloudflare.com"></script>
+    <style>
+        body, html { margin: 0; height: 100%; overflow: hidden; font-family: sans-serif; }
+        .toolbar { height: 40px; background: #202124; color: white; display: flex; align-items: center; padding: 0 15px; justify-content: space-between; }
+        .container { display: flex; height: calc(100% - 40px); width: 100%; position: relative; }
+        #editor { width: 50%; height: 100%; }
+        #preview { width: 50%; height: 100%; border: none; background: white; }
+        .resizer { width: 5px; cursor: col-resize; background: #444; height: 100%; z-index: 10; }
+        button { cursor: pointer; background: #4CAF50; color: white; border: none; padding: 5px 15px; border-radius: 4px; transition: 0.3s; }
+        button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <span>HTML Live Editor</span>
+    <button onclick="openInNewTab()">Открыть в новой вкладке ↗</button>
+</div>
+
+<div class="container" id="main-container">
+    <div id="editor"></div>
+    <div class="resizer" id="resizer"></div>
+    <iframe id="preview"></iframe>
+</div>
+
+<script>
+    let editor;
+    const preview = document.getElementById('preview');
+
+    // Инициализация редактора Monaco (как в VS Code)
+    require.config({ paths: { vs: 'https://cloudflare.com' } });
+    require(['vs/editor/editor.main'], function () {
+        editor = monaco.editor.create(document.getElementById('editor'), {
+            value: `<!DOCTYPE html>\n<html>\n<head>\n<style>\n  body { font-family: sans-serif; text-align: center; padding-top: 50px; }\n  h1 { color: #4CAF50; }\n</style>\n</head>\n<body>\n  <h1>Привет, GitHub!</h1>\n  <p>Отредактируй этот текст слева.</p>\n</body>\n</html>`,
+            language: 'html',
+            theme: 'vs-dark',
+            automaticLayout: true
+        });
+
+        // Обновление предпросмотра при вводе текста
+        editor.onDidChangeModelContent(() => {
+            updatePreview();
+        });
+
+        updatePreview();
+    });
+
+    function updatePreview() {
+        const code = editor.getValue();
+        const blob = new Blob([code], { type: 'text/html' });
+        preview.src = URL.createObjectURL(blob);
+    }
+
+    function openInNewTab() {
+        const code = editor.getValue();
+        const newWindow = window.open();
+        newWindow.document.write(code);
+        newWindow.document.close();
+    }
+
+    // Логика перемещения разделителя (изменение ширины)
+    const resizer = document.getElementById('resizer');
+    const leftSide = document.getElementById('editor');
+    const container = document.getElementById('main-container');
+
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.body.style.cursor = 'col-resize';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        let offsetLeft = e.clientX;
+        let leftWidth = (offsetLeft / container.offsetWidth) * 100;
+        if (leftWidth > 10 && leftWidth < 90) {
+            leftSide.style.width = leftWidth + '%';
+            preview.style.width = (100 - leftWidth) + '%';
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        isResizing = false;
+        document.body.style.cursor = 'default';
+    });
+</script>
+
+</body>
+</html>
