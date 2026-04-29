@@ -67,7 +67,6 @@
     .CodeMirror-activeline-background{background:rgba(0,212,170,.05)!important}
     ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:4px}::-webkit-scrollbar-thumb:hover{background:var(--fgm)}
 
-    /* ИИ Чат */
     #aiFab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#00d4aa,#00b894);color:#0d1117;border:none;font-size:1.4rem;cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(0,212,170,.35);transition:transform .2s,box-shadow .2s;display:flex;align-items:center;justify-content:center}
     #aiFab:hover{transform:scale(1.1);box-shadow:0 6px 28px rgba(0,212,170,.5)}
     #aiChat{position:fixed;bottom:90px;right:24px;width:400px;height:560px;background:var(--bg2);border:1px solid var(--brd);border-radius:16px;z-index:200;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5);transition:opacity .25s,transform .25s;transform-origin:bottom right}
@@ -86,8 +85,7 @@
     .aiDiffPre .del{color:var(--err);text-decoration:line-through;opacity:.7}
     .aiDiffPre .add{color:var(--acc)}
     .aiAp{margin-top:8px;padding:7px 16px;background:var(--acc);color:#0d1117;border:none;border-radius:6px;font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit;transition:.15s}
-    .aiAp:hover{background:var(--acch)}
-    .aiAp:disabled{opacity:.5;cursor:not-allowed}
+    .aiAp:hover{background:var(--acch)}.aiAp:disabled{opacity:.5;cursor:not-allowed}
     .aiQa{padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--brd);background:var(--bg3);flex-shrink:0}
     .aiQb{padding:5px 10px;background:var(--bg);border:1px solid var(--brd);color:var(--fgm);border-radius:6px;font-size:.72rem;cursor:pointer;font-family:inherit;transition:.15s;font-weight:600}
     .aiQb:hover{border-color:var(--acc);color:var(--acc);background:var(--accd)}
@@ -100,6 +98,7 @@
     .aiTy span{width:8px;height:8px;background:var(--fgm);border-radius:50%;animation:bounce 1.4s infinite}
     .aiTy span:nth-child(2){animation-delay:.2s}.aiTy span:nth-child(3){animation-delay:.4s}
     @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-8px)}}
+    .aiErr{color:var(--err);font-style:italic}
     @media(max-width:768px){.toolbar{padding:6px 10px;flex-wrap:wrap;gap:6px}.btn span{display:none}.mb{padding:5px 10px;font-size:.75rem}.purl{display:none}.logo{font-size:1rem}.tc{display:none}#aiChat{width:calc(100vw - 16px);right:8px;bottom:80px;height:65vh}}
   </style>
 </head>
@@ -157,10 +156,8 @@
     <div class="sl"><div class="si"><div class="sd"></div> Готов</div><div class="si" id="sM">Один файл</div></div>
     <div class="sr"><div class="si" id="sC">Стр: 1, Стб: 1</div><div class="si" id="sCh">0</div><div class="si" id="sL">0</div></div>
   </div>
-
   <div class="tstc" id="tC"></div>
 
-  <!-- ИИ -->
   <button id="aiFab" onclick="toggleAI()"><i class="fa-solid fa-robot"></i></button>
   <div id="aiChat" class="hidden">
     <div class="aiH">
@@ -195,7 +192,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
 
   <script>
+    // === Состояние ===
     let curMode='single',autoRun=true,isHoriz=true,isSwapped=false,debTimer=null,actTab='html',errCnt=0;
+
     const sTmpl=`<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <title>Моя страница</title>\n  <style>\n    body { background: #0f0f1a; color: #eee; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; flex-direction: column; }\n    h1 { color: #00d4aa; font-size: 2.5rem; }\n    p { color: #8b949e; margin: 12px 0 24px; }\n    button { background: #00d4aa; border: none; padding: 12px 28px; border-radius: 10px; cursor: pointer; color: #000; font-weight: bold; font-size: 1rem; transition: transform .2s; }\n    button:hover { transform: scale(1.05); }\n  </style>\n</head>\n<body>\n  <h1>CodePad + AI</h1>\n  <p>Выделите код и попросите ИИ что-нибудь изменить.</p>\n  <button onclick="alert('Работает!')">Нажми меня</button>\n</body>\n</html>`;
     const mH=`<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <link rel="stylesheet" href="style.css">\n</head>\n<body>\n  <h1>Раздельные файлы</h1>\n  <script src="script.js"><\/script>\n</body>\n</html>`;
     const mC=`h1 { color: #00d4aa; }`;const mJ=`console.log('JS!');`;
@@ -206,12 +205,10 @@
     function updSt(){const ed=getAE();if(!ed)return;const v=ed.getValue(),c=ed.getCursor();document.getElementById('sCh').textContent=v.length+' сим';document.getElementById('sL').textContent=ed.lineCount()+' стр';document.getElementById('sC').textContent=`Стр: ${c.line+1}, Стб: ${c.ch+1}`}
     function getAE(){if(curMode==='single')return eH;return{html:eH,css:eC,js:eJ}[actTab]||eH}
     function getSel(){const ed=getAE();return ed.getSelection()?{text:ed.getSelection(),from:ed.getCursor('from'),to:ed.getCursor('to')}:null}
-
     function setMode(m){const p=curMode;curMode=m;document.querySelectorAll('.mb').forEach(b=>b.classList.toggle('a',b.dataset.mode===m));const t=document.getElementById('et');if(m==='single'){t.style.display='none';if(p==='multi')eH.setValue(sTmpl);showEd('html');document.getElementById('sM').textContent='Один файл'}else{t.style.display='flex';if(p==='single'){eH.setValue(mH);eC.setValue(mC);eJ.setValue(mJ)}swTab('html');document.getElementById('sM').textContent='Раздельные'}renTabs();runCode()}
     function renTabs(){const t=document.getElementById('et');if(curMode==='single'){t.innerHTML='';return}const tabs=[{id:'html',l:'index.html',d:'dh'},{id:'css',l:'style.css',d:'dc'},{id:'js',l:'script.js',d:'dj'}];t.innerHTML=tabs.map(t=>`<button class="etab ${t.id===actTab?'a':''}" onclick="swTab('${t.id}')"><span class="dot ${t.d}"></span>${t.l}</button>`).join('')}
     function swTab(t){actTab=t;showEd(t);renTabs();updSt();const ed=getAE();if(ed)setTimeout(()=>{ed.refresh();ed.focus()},30)}
     function showEd(t){['html','css','js'].forEach(x=>{document.getElementById('ew'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('h',x!==t)});setTimeout(()=>[eH,eC,eJ].forEach(e=>e.refresh()),20)}
-
     function buildOut(){let r;if(curMode==='single'){r=eH.getValue()}else{const h=eH.getValue(),c=eC.getValue(),j=eJ.getValue();r=h;r=r.replace(/<link[^>]*href=["']style\.css["'][^>]*\/?>/gi,`<style>${c}</style>`);r=r.replace(/<script[^>]*src=["']script\.js["'][^>]*><\/script>/gi,`<script>${j}<\/script>`);if(c.trim()&&!r.includes(c))r=r.replace('</head>',`<style>${c}</style>\n</head>`);if(j.trim()&&!r.includes(j))r=r.replace('</body>',`<script>${j}<\/script>\n</body>`)}if(r.includes('<head>'))r=r.replace('<head>','<head>'+cPr);else r=cPr+r;return r}
     function runCode(){clearCon();document.getElementById('pf').srcdoc=buildOut()}
     function refreshPreview(){runCode();toast('Обновлено')}
@@ -229,13 +226,102 @@
     function toast(msg){const c=document.getElementById('tC'),t=document.createElement('div');t.className='tst';t.textContent=msg;c.appendChild(t);setTimeout(()=>{t.classList.add('fo');setTimeout(()=>t.remove(),300)},2000)}
     document.addEventListener('keydown',e=>{const m=e.ctrlKey||e.metaKey;if(m&&e.key==='Enter'){e.preventDefault();runCode();toast('Запущено')}if(m&&e.key==='s'){e.preventDefault();downloadFile()}if(m&&e.shiftKey&&(e.key==='O'||e.key==='o')){e.preventDefault();openInNewTab()}});
 
-    // === ИИ ===
+    // =============================================
+    // === ИИ АССИСТЕНТ (исправленная версия) =====
+    // =============================================
     let aiOpen=false,aiLoading=false;
 
     function toggleAI(){aiOpen=!aiOpen;document.getElementById('aiChat').classList.toggle('hidden',!aiOpen);if(aiOpen)document.getElementById('aiIn').focus()}
-
     function quickAI(cmd){document.getElementById('aiIn').value=cmd;sendAI()}
 
+    // --- Извлечение текста из ответа ИИ ---
+    function extractContent(raw){
+      // 1) Попробуем распарсить как JSON
+      try {
+        const j = JSON.parse(raw);
+        // OpenAI-совместимый формат: { choices: [{ message: { content } }] }
+        if(j.choices && j[0]?.message?.content) return j.choices[0].message.content;
+        if(j.choices && j.choices[0]?.message?.content) return j.choices[0].message.content;
+        // Формат { content: "..." }
+        if(typeof j.content === 'string' && j.content.trim()) return j.content;
+        // Формат { text: "..." }
+        if(typeof j.text === 'string' && j.text.trim()) return j.text;
+        // Формат { output: "..." }
+        if(typeof j.output === 'string' && j.output.trim()) return j.output;
+        // Если есть reasoning но нет контента — это «думающая» модель, вернём null
+        if(j.reasoning || j.reasoning_content) return null;
+        // Массив сообщений
+        if(Array.isArray(j)){
+          const last = j[j.length-1];
+          if(last?.content) return last.content;
+        }
+      } catch(e) { /* не JSON — хорошо, это обычный текст */ }
+
+      // 2) Обычный текст — проверим, не содержит ли он JSON-мусор
+      let text = raw.trim();
+
+      // Если текст начинается с { и содержит "reasoning" — попытаемся вытащить контент
+      if(text.startsWith('{') && text.includes('"reasoning"')){
+        try{
+          const j=JSON.parse(text);
+          if(j.content) return j.content;
+          return null; // Мусорный ответ reasoning-модели
+        }catch(e){}
+      }
+
+      // Если текст выглядит как валидный ответ (содержит SEARCH/REPLACE, код или просто текст)
+      if(text.length > 5) return text;
+
+      return null;
+    }
+
+    // --- Вызов ИИ с фоллбэком по моделям ---
+    async function callAI(sysPrompt, userMsg){
+      // Список моделей по приоритету (не-reasoning модели)
+      const models = ['mistral', 'llama', 'qwen'];
+
+      for(const model of models){
+        try{
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 30000);
+
+          const resp = await fetch('https://text.pollinations.ai/', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            signal: controller.signal,
+            body: JSON.stringify({
+              messages:[
+                {role:'system', content:sysPrompt},
+                {role:'user', content:userMsg}
+              ],
+              model: model,
+              temperature: 0.3,
+              max_tokens: 4096
+            })
+          });
+
+          clearTimeout(tid);
+
+          if(!resp.ok) continue;
+
+          const raw = await resp.text();
+          const content = extractContent(raw);
+
+          if(content && content.trim().length > 3){
+            return content;
+          }
+          // Контент не извлечён (reasoning-мусор) — пробуем следующую модель
+          continue;
+        }catch(e){
+          // Таймаут или сетевая ошибка — следующая модель
+          continue;
+        }
+      }
+
+      throw new Error('Не удалось получить ответ от ИИ. Попробуйте позже.');
+    }
+
+    // --- Основная функция отправки ---
     async function sendAI(){
       if(aiLoading)return;
       const inp=document.getElementById('aiIn');
@@ -272,23 +358,12 @@
 Правила:
 1. Используй один или несколько блоков SEARCH/REPLACE
 2. Код в SEARCH должен ТОЧНО совпадать с оригиналом (включая пробелы и переносы)
-3. Если нужно добавить код — поставь в SEARCH пустую строку или соседнюю строку
+3. Если нужно добавить код — поставь в SEARCH соседнюю строку и добавь новый код рядом
 4. Если просят объяснить — просто ответь текстом, без блоков SEARCH/REPLACE
-5. Если изменений много и затронут весь файл — верни весь код в \`\`\`html ... \`\`\`
-6. Отвечай на русском. Будь краток.`;
+5. Если изменений так много, что затронут весь файл — верни весь код в \`\`\`html ... \`\`\`
+6. Отвечай на русском. Будь краток. Не пиши лишнего текста, только код или ответ.`;
 
-        const resp=await fetch("https://text.pollinations.ai/",{
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
-            messages:[{role:"system",content:sysPrompt},{role:"user",content:userMsg}],
-            model:"openai",
-            temperature:0.4
-          })
-        });
-
-        if(!resp.ok)throw new Error('Сеть недоступна ('+resp.status+')');
-        const text=await resp.text();
+        const text = await callAI(sysPrompt, userMsg);
         ty.remove();
 
         // Парсим SEARCH/REPLACE блоки
@@ -301,27 +376,18 @@
 
         if(diffs.length>0){
           // Показываем патчи
-          let appliedCount=0;
-          let currentCode=eH.getValue();
-
           diffs.forEach((d,i)=>{
             const div=document.createElement('div');div.className='aiM b';
-
-            // Визуализация diff
             const diffDiv=document.createElement('div');diffDiv.className='aiDiff';
-            const diffHeader=document.createElement('div');diffHeader.className='aiDiffH';
-            diffHeader.innerHTML=`<span>Изменение ${i+1}</span><span class="diff-status">Ожидает</span>`;
+            const diffH=document.createElement('div');diffH.className='aiDiffH';
+            diffH.innerHTML=`<span>Изменение ${i+1}</span><span class="diff-status" style="color:var(--fgm)">Ожидает</span>`;
             const diffPre=document.createElement('div');diffPre.className='aiDiffPre';
-
-            // Показываем что удаляем и что добавляем
-            const searchLines=d.search.split('\n');
-            const replaceLines=d.replace.split('\n');
-            let diffHtml='';
-            searchLines.forEach(l=>{diffHtml+=`<span class="del">- ${l}</span>\n`});
-            replaceLines.forEach(l=>{diffHtml+=`<span class="add">+ ${l}</span>\n`});
-            diffPre.innerHTML=diffHtml;
-
-            diffDiv.appendChild(diffHeader);diffDiv.appendChild(diffPre);
+            const sLines=d.search.split('\n'),rLines=d.replace.split('\n');
+            let dh='';
+            sLines.forEach(l=>{dh+=`<span class="del">- ${l}</span>\n`});
+            rLines.forEach(l=>{dh+=`<span class="add">+ ${l}</span>\n`});
+            diffPre.innerHTML=dh;
+            diffDiv.appendChild(diffH);diffDiv.appendChild(diffPre);
             div.appendChild(diffDiv);
 
             const btn=document.createElement('button');btn.className='aiAp';btn.textContent='Применить';
@@ -330,41 +396,35 @@
               if(cur.includes(d.search)){
                 eH.setValue(cur.replace(d.search,d.replace));
                 btn.textContent='Применено!';btn.disabled=true;btn.style.opacity='.5';
-                diffHeader.querySelector('.diff-status').textContent='Применено';
-                diffHeader.querySelector('.diff-status').style.color='var(--acc)';
-                toast('Изменение '+((i+1))+' применено');
+                diffH.querySelector('.diff-status').textContent='Применено';diffH.querySelector('.diff-status').style.color='var(--acc)';
+                toast('Изменение '+(i+1)+' применено');
               }else{
                 btn.textContent='Не найдено!';btn.disabled=true;btn.style.background='var(--err)';
-                diffHeader.querySelector('.diff-status').textContent='Ошибка';
-                diffHeader.querySelector('.diff-status').style.color='var(--err)';
+                diffH.querySelector('.diff-status').textContent='Ошибка';diffH.querySelector('.diff-status').style.color='var(--err)';
                 toast('Кусок кода не найден — возможно уже изменён');
               }
             };
-            div.appendChild(btn);
-            msgs.appendChild(div);
+            div.appendChild(btn);msgs.appendChild(div);
           });
 
           // Кнопка "Применить все"
           if(diffs.length>1){
-            const allDiv=document.createElement('div');allDiv.className='aiM b';
-            const allBtn=document.createElement('button');allBtn.className='aiAp';
-            allBtn.innerHTML='<i class="fa-solid fa-check-double"></i> Применить все изменения';
-            allBtn.onclick=()=>{
-              let cur=eH.getValue();let ok=0;
+            const allD=document.createElement('div');allD.className='aiM b';
+            const allB=document.createElement('button');allB.className='aiAp';
+            allB.innerHTML='<i class="fa-solid fa-check-double"></i> Применить все изменения';
+            allB.onclick=()=>{
+              let cur=eH.getValue(),ok=0;
               diffs.forEach(d=>{if(cur.includes(d.search)){cur=cur.replace(d.search,d.replace);ok++}});
               eH.setValue(cur);
-              allBtn.textContent=`Применено ${ok}/${diffs.length}`;allBtn.disabled=true;allBtn.style.opacity='.5';
-              // Обновляем все кнопки
-              msgs.querySelectorAll('.aiAp').forEach(b=>{if(b!==allBtn){b.textContent='Применено';b.disabled=true;b.style.opacity='.5'}});
+              allB.textContent=`Применено ${ok}/${diffs.length}`;allB.disabled=true;allB.style.opacity='.5';
+              msgs.querySelectorAll('.aiAp').forEach(b=>{if(b!==allB){b.textContent='Применено';b.disabled=true;b.style.opacity='.5'}});
               msgs.querySelectorAll('.diff-status').forEach(s=>{s.textContent='Применено';s.style.color='var(--acc)'});
               toast(`Применено ${ok}/${diffs.length} изменений`);
             };
-            allDiv.appendChild(allBtn);
-            msgs.appendChild(allDiv);
+            allD.appendChild(allB);msgs.appendChild(allD);
           }
-
         }else{
-          // Проверяем полный код
+          // Проверяем полный код в markdown-блоке
           const codeMatch=text.match(/```(?:html)?\s*\n([\s\S]*?)\n```/);
           if(codeMatch){
             const div=document.createElement('div');div.className='aiM b';
@@ -379,7 +439,8 @@
           }
         }
       }catch(err){
-        ty.remove();addAM('b','Ошибка: '+err.message+'. Попробуйте ещё раз.');
+        ty.remove();
+        addAM('b','<span class="aiErr">Ошибка: '+err.message+'</span>');
       }
 
       aiLoading=false;document.getElementById('aiSnd').disabled=false;
@@ -391,6 +452,7 @@
       d.className='aiM '+(role==='u'?'u':'b');d.innerHTML=html;m.appendChild(d);m.scrollTop=m.scrollHeight;
     }
 
+    // === Запуск ===
     window.addEventListener('DOMContentLoaded',()=>{
       initEd();renTabs();initRz();updSt();setTimeout(runCode,150);
       const aiIn=document.getElementById('aiIn');
